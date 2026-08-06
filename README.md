@@ -1,0 +1,71 @@
+# Skill Scan
+
+Preflight de solo lectura para revisar skills y plugins de agentes antes de instalarlos. No ejecuta el contenido, no modifica el objetivo y no envía datos.
+
+## Uso rápido
+
+```bash
+python3 skill_scan.py --self-test
+python3 skill_scan.py ./skill-o-plugin-descargado
+python3 skill_scan.py                 # busca instalaciones conocidas
+python3 skill_scan.py ./plugin --json
+python3 skill_scan.py ./plugin --json --inventory > reporte.json
+```
+
+`--inventory` agrega el SHA-256 de cada archivo al reporte JSON. El reporte también incluye el hash del scanner que lo produjo.
+
+## Cómo leer el resultado
+
+| Veredicto | Significado | Acción |
+| --- | --- | --- |
+| `PASS` | No encontró patrones conocidos | Revisar procedencia y permisos antes de instalar |
+| `REVIEW` | Encontró señales medias o bajas | Revisar cada hallazgo manualmente |
+| `BLOCK` | Encontró señales altas, críticas o un escaneo incompleto | No instalar hasta entender y corregir cada hallazgo |
+
+Exit codes: `0` para `PASS`, `1` para `REVIEW` y `2` para `BLOCK`. Un resultado limpio no prueba que la extensión sea segura.
+
+## Compartir y verificar
+
+El archivo `SHA256SUMS` permite comprobar que `skill_scan.py` no cambió durante el envío:
+
+```bash
+shasum -a 256 -c SHA256SUMS       # macOS
+sha256sum -c SHA256SUMS           # Linux
+```
+
+Para WhatsApp, envía el script y `SHA256SUMS` como archivos. Comparte también el hash por un mensaje separado o por otro canal; un checksum enviado junto al archivo no protege contra el reemplazo de ambos.
+
+## Incidentes npm
+
+Incluye una lista mínima fechada el 2026-08-05 para las campañas de `axios` y `keyv/cacheable`. Para usar la lista completa y actual de Wiz Research:
+
+```bash
+curl --proto '=https' --tlsv1.2 -fLo keyv-packages.csv https://raw.githubusercontent.com/wiz-sec-public/wiz-research-iocs/refs/heads/main/reports/keyv-packages.csv
+python3 skill_scan.py ./plugin --ioc-csv keyv-packages.csv
+```
+
+Antes de instalar dependencias de un plugin no confiable:
+
+```bash
+npm config set strict-allow-scripts true --location=project
+npm config set min-release-age 7 --location=project
+npm ci --ignore-scripts
+npm approve-scripts --allow-scripts-pending
+```
+
+Revisa y fija cada excepción antes de permitir scripts. El scanner marca `.npmrc` que habiliten `dangerously-allow-all-scripts`.
+
+## Segunda opinión opcional
+
+Estas herramientas se ejecutan por separado. `skill_scan.py` nunca las instala ni las llama:
+
+```bash
+skillspector scan ./plugin --no-llm
+guarddog npm scan ./plugin
+```
+
+[NVIDIA SkillSpector](https://github.com/NVIDIA/SkillSpector) amplía el análisis estático de skills. [GuardDog](https://github.com/DataDog/guarddog) revisa código y metadatos de paquetes npm dentro de un sandbox. Instálalas y verifica su checksum siguiendo sus repositorios oficiales.
+
+Fuentes: [IoCs de Wiz Research](https://github.com/wiz-sec-public/wiz-research-iocs/blob/main/reports/keyv-packages.csv), [controles de instalación de npm](https://docs.npmjs.com/cli/install/) y [aprobación de scripts](https://docs.npmjs.com/cli/v11/commands/npm-approve-scripts/).
+
+Licencia: MIT.
